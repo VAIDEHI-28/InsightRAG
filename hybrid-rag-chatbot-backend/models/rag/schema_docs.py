@@ -1,5 +1,3 @@
-from models.rag.embeddings import embed
-
 def build_schema_docs(schema):
     docs = []
     for semantic, real in schema.items():

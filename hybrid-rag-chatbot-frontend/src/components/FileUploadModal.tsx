@@ -7,6 +7,7 @@ import { uploadFileWithCategory } from '../services/api';
 interface FileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  chatId: string; 
   defaultCategory?: 'purchase' | 'hr' | 'finance' | 'other';
 }
 
@@ -14,6 +15,7 @@ interface FileUploadModalProps {
 const FileUploadModal: React.FC<FileUploadModalProps> = ({ 
   isOpen, 
   onClose,
+  chatId,
   defaultCategory = 'purchase'
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);  // ← Changed to array
@@ -101,7 +103,10 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-
+  if (!chatId) {
+    alert("No active chat selected.");
+    return;
+  }
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       alert('Please select at least one file');
@@ -126,6 +131,7 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
           
           const response = await uploadFileWithCategory(
             file, 
+            chatId,
             category as 'purchase' | 'hr' | 'finance' | 'other'
           );
           

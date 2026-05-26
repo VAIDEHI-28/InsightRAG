@@ -1,9 +1,8 @@
-#reads the excel file 
-# data/loader.py
 import pandas as pd
 
 
 def load_excel_files(file_paths):
+
     all_frames = []
 
     for path in file_paths:
@@ -11,6 +10,7 @@ def load_excel_files(file_paths):
 
         for sheet in excel.sheet_names:
             df = excel.parse(sheet)
+
             if not df.empty:
                 all_frames.append(df)
 
@@ -19,7 +19,14 @@ def load_excel_files(file_paths):
 
     merged = pd.concat(all_frames, ignore_index=True)
 
-    # Clean column names
     merged.columns = [c.strip() for c in merged.columns]
+
+    # ⭐ ensure numeric types
+    for col in merged.columns:
+        try:
+            merged[col] = pd.to_numeric(merged[col])
+        except:
+            pass
+
 
     return merged

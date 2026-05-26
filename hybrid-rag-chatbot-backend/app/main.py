@@ -1,107 +1,100 @@
 # app/main.py
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import os
-from dotenv import load_dotenv
+from datetime import datetime
 
-from app.database import init_db, close_db
+# Import database
+from app.database import init_db
+
+# Import RAG service functions
+from app.services.rag_service import is_initialized
+
+# Import routes
 from app.routes import chat, files
 
-# ✏️ CHANGE #1: Import RAG status function
-from app.services.rag_service import get_rag_status, initialize_rag_system
 
-# Load environment variables
-load_dotenv()
-
-
+# ========================================
+# LIFESPAN CONTEXT MANAGER
+# ========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
-    # Startup
+
+    print("=" * 60)
     print("🚀 Starting ARG Supply Tech Chatbot API...")
+    print("=" * 60)
+
+    # Initialize database
     await init_db()
     print("✅ Database ready!")
-    
-    # ✏️ CHANGE #2: Initialize RAG system on startup
-    print("🔄 Initializing RAG system...")
-    rag_initialized = await initialize_rag_system()
-    if rag_initialized:
-        print("✅ RAG system ready!")
-    else:
-        print("⚠️ RAG system will initialize on first query (no files uploaded yet)")
-    
+
+    # ✅ Multi-user mode: No global rebuild
+    print("🧠 Multi-user RAG mode enabled.")
+    print("📌 RAG will initialize per user + per chat on file upload.")
+    print("=" * 60)
+
     yield
-    
-    # Shutdown
-    print("👋 Shutting down...")
-    await close_db()
+
+    print("=" * 60)
+    print("🛑 Shutting down ARG Supply Tech Chatbot API...")
+    print("=" * 60)
 
 
-# Create FastAPI app
+# ========================================
+# CREATE FASTAPI APP
+# ========================================
 app = FastAPI(
-    title="ARG Supply Tech Chatbot API",
-    description="Hybrid RAG Chatbot for Supply Chain Analytics",
-    version="1.0.0",
+    title="ARG Supply Tech Chatbot",
+    description="AI-powered analytics chatbot for supply chain data",
+    version="2.0.0",
     lifespan=lifespan
 )
 
-# CORS configuration
+
+# ========================================
+# CORS MIDDLEWARE
+# ========================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("FRONTEND_URL", "http://localhost:5173"),
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174"
-    ],
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(chat.router)
-app.include_router(files.router)
+
+# ========================================
+# ROUTES
+# ========================================
+app.include_router(chat.router, prefix="/api", tags=["Chat"])
+app.include_router(files.router, prefix="/api", tags=["Files"])
 
 
+# ========================================
+# ROOT ENDPOINT
+# ========================================
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
-        "message": "Welcome to ARG Supply Tech Chatbot API",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs"
+        "status": "online",
+        "message": "ARG Supply Tech Chatbot API",
+        "version": "2.0.0",
+        "rag_initialized": is_initialized(),
+        "timestamp": datetime.now().isoformat(),
+        "architecture": "Multi-user + Multi-chat isolated (Milvus scoped)"
     }
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    # ✏️ CHANGE #3: Get RAG system status
-    rag_status = get_rag_status()
-    
     return {
         "status": "healthy",
-        "database": "connected",
-        "rag_system": {
-            "initialized": rag_status["initialized"],
-            "files_loaded": rag_status["files_loaded"],
-            "data_rows": rag_status["rows"],
-            "data_columns": rag_status["columns"],
-            "retriever_available": rag_status["retriever_available"]
-        },
-        "gcp_vertex_ai": "configured" if os.getenv("GCP_PROJECT_ID") else "not_configured"
+        "rag_initialized": is_initialized(),
+        "timestamp": datetime.now().isoformat()
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", 8000)),
-        reload=os.getenv("DEBUG", "True").lower() == "true"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

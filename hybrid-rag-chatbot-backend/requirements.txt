@@ -22,3 +22,7 @@ faiss-cpu
 fastapi
 uvicorn
 python-dotenv
+google-cloud-aiplatform
+vertexai
+protobuf
+pymilvus
